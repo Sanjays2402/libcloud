@@ -7,6 +7,11 @@ Changes in Apache Libcloud 4.0.0
 Common
 ~~~~~~
 
+- Respect the ``no_proxy`` / ``NO_PROXY`` environment variable so an explicitly
+  configured proxy is bypassed for matching hosts.
+  (GITHUB-2077)
+  [Sanjay Santhanam - @Sanjays2402]
+
 - Move tests to python 3.12.
   (#2152)
   [Miguel Caballer - @micafer]
@@ -70,6 +75,12 @@ Compute
 
 Storage
 ~~~~~~~
+
+- [Azure Blobs] Fix SAS signatures for percent-encoded object paths by using
+  the decoded path in the canonicalized resource while preserving the encoded
+  path in the returned URL.
+  (GITHUB-1805)
+  [Jack Chen - @nightcityblade]
 
 - [S3] Fix ``chunk_size`` argument being ignored by
   ``download_object_as_stream`` and ``download_object_range_as_stream``. The

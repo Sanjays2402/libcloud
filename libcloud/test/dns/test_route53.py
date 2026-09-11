@@ -373,6 +373,99 @@ class Route53Tests(unittest.TestCase):
             ),
         )
 
+    def test_delete_multi_value_record_at_zone_apex(self):
+        # A record with an empty name (zone apex) must be deleted with the
+        # zone domain as the record set name.
+        zone = self.driver.list_zones()[0]
+        record = Record(
+            id="A:@",
+            name="",
+            type=RecordType.A,
+            data="1.2.3.4",
+            zone=zone,
+            driver=self.driver,
+            extra={
+                "_multi_value": True,
+                "_other_records": [{"data": "5.6.7.8", "extra": {}}],
+            },
+        )
+
+        sent = {}
+        original_request = self.driver.connection.request
+
+        def record_request(uri, *args, **kwargs):
+            if kwargs.get("method") == "POST":
+                sent["data"] = kwargs.get("data")
+
+            return original_request(uri, *args, **kwargs)
+
+        self.driver.connection.request = record_request
+        status = self.driver.delete_record(record=record)
+        self.assertTrue(status)
+
+        data = sent["data"]
+
+        if not isinstance(data, str):
+            data = data.decode("utf-8")
+
+        self.assertIn("<Name>%s</Name>" % zone.domain, data)
+
+    def test_with_record_set_metadata_list_records_failure(self):
+        # If the record set cannot be re-fetched, the record is used as-is.
+        zone = self.driver.list_zones()[0]
+        record = Record(
+            id="A:foo",
+            name="foo",
+            type=RecordType.A,
+            data="1.2.3.4",
+            zone=zone,
+            driver=self.driver,
+            extra={},
+        )
+
+        original_list_records = self.driver.list_records
+
+        def boom(*args, **kwargs):
+            raise Exception("boom")
+
+        self.driver.list_records = boom
+
+        try:
+            result = self.driver._with_record_set_metadata(record)
+        finally:
+            self.driver.list_records = original_list_records
+
+        self.assertIs(result, record)
+
+    def test_with_record_set_metadata_no_matching_record(self):
+        # If no record in the re-fetched set matches, the record is used
+        # as-is.
+        zone = self.driver.list_zones()[0]
+        record = Record(
+            id="A:no-such-record",
+            name="no-such-record",
+            type=RecordType.A,
+            data="9.9.9.9",
+            zone=zone,
+            driver=self.driver,
+            extra={},
+        )
+
+        result = self.driver._with_record_set_metadata(record)
+
+        self.assertIs(result, record)
+        self.assertNotIn("_multi_value", result.extra)
+
+    def test_to_record_value(self):
+        self.assertEqual(self.driver._to_record_value("1.2.3.4", None), "1.2.3.4")
+        self.assertEqual(self.driver._to_record_value("1.2.3.4", {}), "1.2.3.4")
+        self.assertEqual(
+            self.driver._to_record_value(
+                "ASPMX.L.GOOGLE.COM.", {"priority": 1}
+            ),
+            "1 ASPMX.L.GOOGLE.COM.",
+        )
+
     def test_delete_record_does_not_exist(self):
         zone = self.driver.list_zones()[0]
         record = self.driver.list_records(zone=zone)[0]

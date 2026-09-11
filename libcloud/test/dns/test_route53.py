@@ -460,9 +460,7 @@ class Route53Tests(unittest.TestCase):
         self.assertEqual(self.driver._to_record_value("1.2.3.4", None), "1.2.3.4")
         self.assertEqual(self.driver._to_record_value("1.2.3.4", {}), "1.2.3.4")
         self.assertEqual(
-            self.driver._to_record_value(
-                "ASPMX.L.GOOGLE.COM.", {"priority": 1}
-            ),
+            self.driver._to_record_value("ASPMX.L.GOOGLE.COM.", {"priority": 1}),
             "1 ASPMX.L.GOOGLE.COM.",
         )
 
